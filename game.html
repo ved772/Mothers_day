@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birthday Hoop Challenge! 🏀</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <!-- Matter.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            /* Fun Gradient Background */
+            background: linear-gradient(135deg, #FFDEE9 0%, #B5FFFC 100%);
+            font-family: 'Fredoka One', cursive;
+            user-select: none;
+        }
+
+        #game-ui {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #score-board {
+            font-size: 3rem;
+            color: #ff6b6b;
+            text-shadow: 3px 3px 0px white, 5px 5px 10px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px 30px;
+            border-radius: 50px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        #instructions {
+            font-size: 1.2rem;
+            color: #555;
+            margin-top: 15px;
+            background: rgba(255, 255, 255, 0.7);
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            animation: bounce 2s infinite;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 12px 24px;
+            background: white;
+            border: 3px solid #ff6b6b;
+            border-radius: 30px;
+            color: #ff6b6b;
+            font-family: inherit;
+            cursor: pointer;
+            text-decoration: none;
+            pointer-events: auto;
+            font-size: 1.1rem;
+            transition: all 0.2s;
+            z-index: 20;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .back-btn:hover {
+            background: #ff6b6b;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        /* Celebration Overlay */
+        .win-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            /* Let clicks pass through except when active */
+            z-index: 100;
+        }
+
+        .win-msg {
+            font-size: 5rem;
+            color: #FFD700;
+            text-shadow: 0 5px 0 #E6AC00, 0 10px 20px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .win-msg.show {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        /* Confetti */
+        .confetti {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #f00;
+            border-radius: 2px;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <a href="index.html" class="back-btn">⬅ Home</a>
+
+    <div id="game-ui">
+        <div id="score-board">Score: <span id="score-val">0</span></div>
+        <br>
+        <div id="instructions">🖱️ Click & Drag the Head to Aim needed! 🎯</div>
+    </div>
+
+    <div class="win-overlay">
+        <div id="win-msg" class="win-msg">GOAL! 🎉</div>
+    </div>
+
+    <script>
+        // --- Matter.js Setup ---
+        const Engine = Matter.Engine,
+            Render = Matter.Render,
+            Runner = Matter.Runner,
+            Bodies = Matter.Bodies,
+            Composite = Matter.Composite,
+            Events = Matter.Events,
+            Mouse = Matter.Mouse,
+            MouseConstraint = Matter.MouseConstraint,
+            Body = Matter.Body,
+            Vector = Matter.Vector;
+
+        // Create engine
+        const engine = Engine.create();
+        const world = engine.world;
+
+        // Create renderer
+        const render = Render.create({
+            element: document.body,
+            engine: engine,
+            options: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                wireframes: false, // Use textures/colors
+                background: 'transparent'
+            }
+        });
+
+        // --- Game Config ---
+        const BALL_RADIUS = 35;
+        const HEAD_TEXTURE = 'assets/head_ball.png'; // Should be roughly square
+        let score = 0;
+        let ball;
+        let isResetting = false;
+
+        // --- Level Setup ---
+
+        // Walls
+        const ground = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 50, window.innerWidth, 100, { isStatic: true, render: { visible: false } });
+        const leftWall = Bodies.rectangle(-50, window.innerHeight / 2, 100, window.innerHeight * 2, { isStatic: true });
+        const rightWall = Bodies.rectangle(window.innerWidth + 50, window.innerHeight / 2, 100, window.innerHeight * 2, { isStatic: true });
+        const ceiling = Bodies.rectangle(window.innerWidth / 2, -500, window.innerWidth, 100, { isStatic: true });
+
+        Composite.add(world, [ground, leftWall, rightWall, ceiling]);
+
+        // Hoop Position (Right side)
+        const hoopX = window.innerWidth * 0.8;
+        const hoopY = window.innerHeight * 0.4;
+
+        // Backboard
+        const backboard = Bodies.rectangle(hoopX + 60, hoopY - 80, 15, 180, {
+            isStatic: true,
+            render: { fillStyle: 'white', strokeStyle: '#ddd', lineWidth: 2 },
+            angle: 0
+        });
+
+        // Rim
+        const rimLeft = Bodies.circle(hoopX - 45, hoopY, 5, { isStatic: true, render: { fillStyle: '#ff4757' } });
+        const rimRight = Bodies.circle(hoopX + 45, hoopY, 5, { isStatic: true, render: { fillStyle: '#ff4757' } });
+
+        // Net (Visual-ish sensors)
+        // Just a sensor to detect score
+        const goalSensor = Bodies.rectangle(hoopX, hoopY + 20, 70, 10, {
+            isStatic: true,
+            isSensor: true,
+            label: 'goal'
+        });
+
+        Composite.add(world, [backboard, rimLeft, rimRight, goalSensor]);
+
+        // Initialize Helper for texture loading
+        const img = new Image();
+        img.src = HEAD_TEXTURE;
+        let imgScale = 0.1; // Default
+
+        img.onload = () => {
+            // Calculate scale to fit BALL_RADIUS * 2 (diameter)
+            // If image is 500px, and we want 70px diameter: scale = 70/500
+            const size = Math.min(img.width, img.height);
+            imgScale = (BALL_RADIUS * 2.3) / size; // 2.3 makes it slightly larger than collider specifically
+            spawnBall();
+        };
+
+        // --- Player (Head) ---
+        function spawnBall() {
+            if (ball) {
+                Composite.remove(world, ball);
+            }
+
+            isResetting = false;
+
+            // Spawn on left
+            const startX = window.innerWidth * 0.2;
+            const startY = window.innerHeight * 0.6;
+
+            ball = Bodies.circle(startX, startY, BALL_RADIUS, {
+                restitution: 0.7, // Bounciness
+                density: 0.005,
+                frictionAir: 0.02,
+                label: 'ball',
+                render: {
+                    sprite: {
+                        texture: HEAD_TEXTURE,
+                        xScale: imgScale,
+                        yScale: imgScale
+                    }
+                }
+            });
+
+            Composite.add(world, ball);
+        }
+
+        // --- Interaction (Mouse Drag) ---
+        const mouse = Mouse.create(render.canvas);
+        const mouseConstraint = MouseConstraint.create(engine, {
+            mouse: mouse,
+            constraint: {
+                stiffness: 0.1, // Elastic feel
+                render: {
+                    visible: true,
+                    type: 'line',
+                    strokeStyle: '#ff6b6b',
+                    lineWidth: 2
+                }
+            }
+        });
+
+        Composite.add(world, mouseConstraint);
+
+        // --- Logic ---
+
+        // Check for Goal
+        Events.on(engine, 'collisionStart', (event) => {
+            event.pairs.forEach((pair) => {
+                const { bodyA, bodyB } = pair;
+                // Check collision with sensor
+                if ((bodyA === goalSensor || bodyB === goalSensor) && (bodyA === ball || bodyB === ball)) {
+                    // Only count if falling DOWN
+                    if (ball.velocity.y > 0 && !isResetting) {
+                        triggerWin();
+                    }
+                }
+            });
+        });
+
+        // Reset if off-screen
+        Events.on(engine, 'afterUpdate', () => {
+            if (!ball || isResetting) return;
+
+            // If ball enters "kill zone" (bottom of screen)
+            if (ball.position.y > window.innerHeight + 100) {
+                resetBall();
+            }
+        });
+
+        function triggerWin() {
+            isResetting = true;
+            score++;
+            document.getElementById('score-val').innerText = score;
+
+            // Visuals
+            const msg = document.getElementById('win-msg');
+            msg.classList.add('show');
+            setTimeout(() => msg.classList.remove('show'), 1500);
+
+            spawnConfetti();
+
+            // Reset ball after short delay
+            setTimeout(() => {
+                spawnBall();
+            }, 1000);
+        }
+
+        function resetBall() {
+            isResetting = true;
+            spawnBall();
+        }
+
+        // --- Effects ---
+        function spawnConfetti() {
+            const colors = ['#ff4757', '#2ed573', '#1e90ff', '#ffa502', '#ff6b81'];
+
+            for (let i = 0; i < 50; i++) {
+                const el = document.createElement('div');
+                el.classList.add('confetti');
+                document.body.appendChild(el);
+
+                const startX = Math.random() * window.innerWidth;
+                const bg = colors[Math.floor(Math.random() * colors.length)];
+
+                el.style.left = startX + 'px';
+                el.style.top = '-10px';
+                el.style.backgroundColor = bg;
+
+                // Animate
+                const duration = 2000 + Math.random() * 2000;
+                const keyframes = [
+                    { transform: `translate(0, 0) rotate(0deg)`, opacity: 1 },
+                    { transform: `translate(${Math.random() * 200 - 100}px, ${window.innerHeight}px) rotate(${Math.random() * 720}deg)`, opacity: 0 }
+                ];
+
+                const anim = el.animate(keyframes, { duration: duration, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)' });
+                anim.onfinish = () => el.remove();
+            }
+        }
+
+        // Start
+        Render.run(render);
+        Runner.run(Runner.create(), engine);
+
+        // Adjust scale logic for image
+        // To properly scale the head image without knowing exact dimensions,
+        // we can attempt to pre-load it, or just use a safe estimation.
+        // For now, I used a rough guess in the sprite config.
+
+    </script>
+</body>
+
+</html>
