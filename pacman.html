@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birthday Pac-Man! 👻</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            /* Fun Gradient Background */
+            background: linear-gradient(135deg, #FFDEE9 0%, #B5FFFC 100%);
+            font-family: 'Fredoka One', cursive;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #game-ui {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #stats-bar {
+            display: inline-flex;
+            gap: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px 30px;
+            border-radius: 50px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-item {
+            font-size: 2rem;
+            color: #ff6b6b;
+            text-shadow: 2px 2px 0px white;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: #888;
+            display: block;
+            margin-bottom: -5px;
+        }
+
+        #timer-val {
+            color: #ff4757;
+            min-width: 60px;
+            display: inline-block;
+        }
+
+        #instructions {
+            font-size: 1.2rem;
+            color: #555;
+            margin-top: 15px;
+            background: rgba(255, 255, 255, 0.7);
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            animation: bounce 2s infinite;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 12px 24px;
+            background: white;
+            border: 3px solid #ff6b6b;
+            border-radius: 30px;
+            color: #ff6b6b;
+            font-family: inherit;
+            cursor: pointer;
+            text-decoration: none;
+            pointer-events: auto;
+            font-size: 1.1rem;
+            transition: all 0.2s;
+            z-index: 20;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .back-btn:hover {
+            background: #ff6b6b;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        /* Celebration Overlay */
+        .win-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 100;
+            flex-direction: column;
+        }
+
+        .win-msg {
+            font-size: 5rem;
+            color: #FFD700;
+            text-shadow: 0 5px 0 #E6AC00, 0 10px 20px rgba(0, 0, 0, 0.2);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+        }
+
+        .win-msg.show {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        .level-up-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 4rem;
+            color: #2ed573;
+            text-shadow: 3px 3px 0 white;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+            z-index: 50;
+        }
+
+        .level-up-overlay.show {
+            opacity: 1;
+            animation: popUp 1s ease forwards;
+        }
+
+        canvas {
+            background: rgba(0, 0, 0, 0.8);
+            border: 5px solid white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+
+        @keyframes popUp {
+            0% {
+                transform: translate(-50%, -50%) scale(0.5);
+                opacity: 0;
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.2);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0;
+            }
+        }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            gap: 15px;
+            pointer-events: auto;
+            z-index: 90;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.3);
+            border: 2px solid white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            color: white;
+            user-select: none;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            touch-action: manipulation;
+        }
+
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.6);
+            transform: scale(0.95);
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .controls-col {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        /* Show mobile controls on small screens or touch devices */
+        @media (max-width: 800px) {
+            #mobile-controls {
+                display: flex;
+            }
+
+            canvas {
+                /* Scale down canvas slightly for mobile to fit controls */
+                transform: scale(0.85) translateY(-50px);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <a href="index.html" class="back-btn">⬅ Home</a>
+
+    <div id="game-ui">
+        <div id="stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">Level</span>
+                <span id="level-val">1</span>/5
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Time</span>
+                <span id="timer-val">30</span>s
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Score</span>
+                <span id="score-val">0</span>
+            </div>
+        </div>
+        <br>
+        <div id="instructions">Survive until the timer runs out! ⏳</div>
+    </div>
+
+    <div id="level-msg" class="level-up-overlay">LEVEL UP! ⬆️</div>
+
+    <div class="win-overlay">
+        <div id="win-msg" class="win-msg">YOU WON! 🎉<br><span style="font-size: 2rem; color: white;">Happy Mother's
+                Day!</span></div>
+        <div id="lose-msg" class="win-msg" style="display: none; color: #ff4757;">GAME OVER 😢<br><span
+                style="font-size: 2rem; color: white;">Try Again!</span><br><button onclick="location.reload()"
+                style="font-size: 1.5rem; margin-top: 20px; cursor: pointer;">Restart</button></div>
+    </div>
+
+    <!-- Video Overlay -->
+    <div id="video-overlay"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 200; justify-content: center; align-items: center;">
+        <video id="game-over-video" width="80%" style="max-width: 600px; border: 5px solid white; border-radius: 10px;"
+            controls>
+            <source src="WhatsApp Video 2026-02-16 at 9.17.50 PM.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+        <button id="close-video-btn"
+            style="position: absolute; top: 20px; right: 20px; font-size: 2rem; background: transparent; border: none; color: white; cursor: pointer;">❌</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- On-screen Controls (Visible on Mobile) -->
+    <div id="mobile-controls">
+        <div class="controls-col">
+            <div class="control-btn" id="btn-up">⬆️</div>
+            <div class="controls-row">
+                <div class="control-btn" id="btn-left">⬅️</div>
+                <div class="control-btn" id="btn-down">⬇️</div>
+                <div class="control-btn" id="btn-right">➡️</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game Configuration
+        const TILE_SIZE = 40;
+        const PACMAN_SPEED = 1.8; // Slower start speed
+        const BASE_GHOST_SPEED = 1.2;
+        const LEVEL_DURATION = 30;
+        const MAX_LEVELS = 5;
+
+        // Assets
+        const pacmanImg = new Image();
+        pacmanImg.src = 'Screenshot_2026-02-16_205255-removebg-preview.png';
+
+        const ghostImages = [
+            'Screenshot_2026-02-16_205320-removebg-preview.png',
+            'Screenshot_2026-02-16_205346-removebg-preview.png',
+            'Screenshot_2026-02-16_205611-removebg-preview.png',
+            'Screenshot_2026-02-16_203935-removebg-preview.png'
+        ];
+        const loadedGhostImages = [];
+        ghostImages.forEach(src => {
+            const img = new Image();
+            img.src = src;
+            loadedGhostImages.push(img);
+        });
+
+        // Map Layout (1 = Wall, 0 = Dot, 2 = Empty/Spawn)
+        const mapLayout = [
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ];
+
+        const COLS = mapLayout[0].length;
+        const ROWS = mapLayout.length;
+
+        canvas.width = COLS * TILE_SIZE;
+        canvas.height = ROWS * TILE_SIZE;
+
+        // State
+        let level = 1;
+        let score = 0;
+        let timeLeft = LEVEL_DURATION;
+        let lastTime = 0;
+        let gameOver = false;
+        let gameWin = false;
+        let ghostSpeed = BASE_GHOST_SPEED;
+
+        // Entities
+        let pacman = {
+            x: TILE_SIZE * 1.5,
+            y: TILE_SIZE * 1.5,
+            dir: { x: 0, y: 0 },
+            nextDir: { x: 0, y: 0 },
+            radius: TILE_SIZE * 0.4,
+            rotation: 0
+        };
+
+        let ghosts = [
+            { startX: TILE_SIZE * 7.5, startY: TILE_SIZE * 5.5, x: 0, y: 0, dir: { x: 1, y: 0 }, imgIndex: 0, color: 'red' },
+            { startX: TILE_SIZE * 7.5, startY: TILE_SIZE * 5.5, x: 0, y: 0, dir: { x: -1, y: 0 }, imgIndex: 1, color: 'pink' },
+            { startX: TILE_SIZE * 7.5, startY: TILE_SIZE * 5.5, x: 0, y: 0, dir: { x: 0, y: 1 }, imgIndex: 2, color: 'cyan' },
+            { startX: TILE_SIZE * 7.5, startY: TILE_SIZE * 5.5, x: 0, y: 0, dir: { x: 0, y: -1 }, imgIndex: 3, color: 'orange' }
+        ];
+
+        let walls = [];
+        let dots = [];
+
+        // Reset positions for new level
+        function resetPositions() {
+            pacman.x = TILE_SIZE * 1.5;
+            pacman.y = TILE_SIZE * 1.5;
+            pacman.dir = { x: 0, y: 0 };
+            pacman.nextDir = { x: 0, y: 0 };
+            pacman.rotation = 0;
+
+            ghosts.forEach(g => {
+                g.x = g.startX;
+                g.y = g.startY;
+                g.dir = { x: Math.random() > 0.5 ? 1 : -1, y: 0 };
+            });
+        }
+
+        function initMap() {
+            walls = [];
+            dots = [];
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (mapLayout[r][c] === 1) {
+                        walls.push({ x: c * TILE_SIZE, y: r * TILE_SIZE, w: TILE_SIZE, h: TILE_SIZE });
+                    } else if (mapLayout[r][c] === 0) {
+                        dots.push({ x: c * TILE_SIZE + TILE_SIZE / 2, y: r * TILE_SIZE + TILE_SIZE / 2, radius: 4 });
+                    }
+                }
+            }
+        }
+
+        // Level Up Logic
+        function nextLevel() {
+            if (level >= MAX_LEVELS) {
+                gameWin = true;
+                document.getElementById('win-msg').classList.add('show');
+                return;
+            }
+
+            level++;
+            timeLeft = LEVEL_DURATION;
+            ghostSpeed = BASE_GHOST_SPEED + (level * 0.4);
+
+            const lvlMsg = document.getElementById('level-msg');
+            lvlMsg.classList.remove('show');
+            void lvlMsg.offsetWidth;
+            lvlMsg.innerText = "LEVEL " + level + "!";
+            lvlMsg.classList.add('show');
+            document.getElementById('level-val').innerText = level;
+
+            resetPositions();
+            initMap();
+        }
+
+        // --- Controls ---
+        const setDir = (x, y) => {
+            if (gameOver || gameWin) return;
+            pacman.nextDir = { x, y };
+        };
+
+        // Keyboard
+        window.addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) > -1) {
+                e.preventDefault();
+            }
+            switch (e.key) {
+                case 'ArrowUp': setDir(0, -1); break;
+                case 'ArrowDown': setDir(0, 1); break;
+                case 'ArrowLeft': setDir(-1, 0); break;
+                case 'ArrowRight': setDir(1, 0); break;
+            }
+        });
+
+        // Touch / Click Controls
+        document.getElementById('btn-up').addEventListener('touchstart', (e) => { e.preventDefault(); setDir(0, -1); });
+        document.getElementById('btn-down').addEventListener('touchstart', (e) => { e.preventDefault(); setDir(0, 1); });
+        document.getElementById('btn-left').addEventListener('touchstart', (e) => { e.preventDefault(); setDir(-1, 0); });
+        document.getElementById('btn-right').addEventListener('touchstart', (e) => { e.preventDefault(); setDir(1, 0); });
+
+        // Also support click for mouse testing
+        document.getElementById('btn-up').addEventListener('mousedown', (e) => { setDir(0, -1); });
+        document.getElementById('btn-down').addEventListener('mousedown', (e) => { setDir(0, 1); });
+        document.getElementById('btn-left').addEventListener('mousedown', (e) => { setDir(-1, 0); });
+        document.getElementById('btn-right').addEventListener('mousedown', (e) => { setDir(1, 0); });
+
+
+        // Loop
+        function gameLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+
+            if (gameOver || gameWin) return;
+
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Timer
+        setInterval(() => {
+            if (!gameOver && !gameWin) {
+                timeLeft--;
+                document.getElementById('timer-val').innerText = timeLeft;
+                if (timeLeft <= 0) {
+                    nextLevel();
+                }
+            }
+        }, 1000);
+
+        function update() {
+            // Pacman Move
+            // 1. Handle Turn Direction (Buffered)
+            // Check if we are attempting to reverse (immediate turn allowed)
+            if (pacman.nextDir.x === -pacman.dir.x && pacman.nextDir.y === -pacman.dir.y) {
+                pacman.dir = pacman.nextDir;
+                pacman.nextDir = { x: 0, y: 0 };
+            }
+
+            // Check Grid Position
+            const cx = Math.floor(pacman.x / TILE_SIZE);
+            const cy = Math.floor(pacman.y / TILE_SIZE);
+            const centerX = cx * TILE_SIZE + TILE_SIZE / 2;
+            const centerY = cy * TILE_SIZE + TILE_SIZE / 2;
+
+            const distFromCenter = Math.hypot(pacman.x - centerX, pacman.y - centerY);
+            const isPacmanCentered = distFromCenter < 5; // Tolerance
+
+            // 2. Try to turn 90 degrees if centered
+            if (isPacmanCentered && (pacman.nextDir.x !== 0 || pacman.nextDir.y !== 0)) {
+                const nextR = cy + pacman.nextDir.y;
+                const nextC = cx + pacman.nextDir.x;
+
+                // If target tile is valid
+                if (mapLayout[nextR] && mapLayout[nextR][nextC] !== 1) {
+                    pacman.dir = pacman.nextDir;
+                    pacman.x = centerX; // Snap to center to perfectly align
+                    pacman.y = centerY;
+                    pacman.nextDir = { x: 0, y: 0 };
+                }
+            }
+
+            // 3. Move
+            let newX = pacman.x + pacman.dir.x * PACMAN_SPEED;
+            let newY = pacman.y + pacman.dir.y * PACMAN_SPEED;
+
+            // 4. Wall Collision Check (Stop at center if wall ahead)
+            const nextR = cy + pacman.dir.y;
+            const nextC = cx + pacman.dir.x;
+
+            let wallAhead = false;
+            // Only check wall ahead if we are moving towards it
+            if (mapLayout[nextR] === undefined || mapLayout[nextR][nextC] === 1) {
+                wallAhead = true;
+            }
+
+            if (wallAhead) {
+                // If moving towards wall, don't go past center
+                if (pacman.dir.x > 0 && newX > centerX) newX = centerX;
+                if (pacman.dir.x < 0 && newX < centerX) newX = centerX;
+                if (pacman.dir.y > 0 && newY > centerY) newY = centerY;
+                if (pacman.dir.y < 0 && newY < centerY) newY = centerY;
+            }
+
+            pacman.x = newX;
+            pacman.y = newY;
+
+            // Rotation
+            if (pacman.dir.x === 1) pacman.rotation = 0;
+            if (pacman.dir.x === -1) pacman.rotation = Math.PI;
+            if (pacman.dir.y === -1) pacman.rotation = -Math.PI / 2;
+            if (pacman.dir.y === 1) pacman.rotation = Math.PI / 2;
+
+            // Eat Dots
+            for (let i = dots.length - 1; i >= 0; i--) {
+                const d = dots[i];
+                const dist = Math.hypot(pacman.x - d.x, pacman.y - d.y);
+                if (dist < pacman.radius) {
+                    dots.splice(i, 1);
+                    score += 10;
+                    document.getElementById('score-val').innerText = score;
+                }
+            }
+
+            // Ghost Move
+            ghosts.forEach(ghost => {
+                if (isCentered(ghost) || (ghost.dir.x === 0 && ghost.dir.y === 0)) {
+                    const possibleDirs = [
+                        { x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }
+                    ].filter(d => !isWallCollision(ghost, d));
+
+                    const forwardOptions = possibleDirs.filter(d => !(d.x === -ghost.dir.x && d.y === -ghost.dir.y));
+
+                    if (forwardOptions.length > 0) {
+                        ghost.dir = forwardOptions[Math.floor(Math.random() * forwardOptions.length)];
+                    } else if (possibleDirs.length > 0) {
+                        ghost.dir = possibleDirs[0];
+                    } else {
+                        ghost.dir = { x: 0, y: 0 };
+                    }
+                }
+
+                ghost.x += ghost.dir.x * ghostSpeed;
+                ghost.y += ghost.dir.y * ghostSpeed;
+
+                // Collision
+                const dist = Math.hypot(pacman.x - ghost.x, pacman.y - ghost.y);
+                if (dist < TILE_SIZE * 0.8) {
+                    triggerGameOver();
+                }
+            });
+        }
+
+        function triggerGameOver() {
+            if (gameOver) return;
+            gameOver = true;
+
+            // Show and play video
+            const videoOverlay = document.getElementById('video-overlay');
+            const video = document.getElementById('game-over-video');
+
+            videoOverlay.style.display = 'flex';
+            video.muted = false; // Ensure audio is on
+            video.volume = 1.0; // Max volume
+            video.play().catch(e => console.log("Autoplay prevented:", e)); // Catch autoplay issues
+
+            // When video ends, show restart screen
+            video.onended = () => {
+                showRestartScreen();
+            };
+        }
+
+        function showRestartScreen() {
+            const videoOverlay = document.getElementById('video-overlay');
+            videoOverlay.style.display = 'none';
+
+            // Show Game Over Text
+            const loseMsg = document.getElementById('lose-msg');
+            loseMsg.style.display = 'block';
+            loseMsg.classList.add('show');
+            document.querySelector('.win-overlay').style.pointerEvents = 'auto'; // Enable clicking restart
+        }
+
+        // Close button for video
+        document.getElementById('close-video-btn').addEventListener('click', () => {
+            const video = document.getElementById('game-over-video');
+            video.pause();
+            showRestartScreen();
+        });
+
+        function isCentered(entity) {
+            const centerX = Math.floor(entity.x / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
+            const centerY = Math.floor(entity.y / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
+            return Math.abs(entity.x - centerX) < 3 && Math.abs(entity.y - centerY) < 3;
+        }
+
+        function isWallCollision(entity, dir) {
+            const r = Math.floor(entity.y / TILE_SIZE);
+            const c = Math.floor(entity.x / TILE_SIZE);
+            const tr = r + dir.y;
+            const tc = c + dir.x;
+            if (tr < 0 || tr >= ROWS || tc < 0 || tc >= COLS) return true;
+            if (mapLayout[tr][tc] === 1) return true;
+            return false;
+        }
+
+        function draw() {
+            ctx.fillStyle = '#222';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#191970';
+            ctx.strokeStyle = '#4169E1';
+            ctx.lineWidth = 2;
+            walls.forEach(w => {
+                ctx.fillRect(w.x, w.y, w.w, w.h);
+                ctx.strokeRect(w.x, w.y, w.w, w.h);
+            });
+
+            ctx.fillStyle = '#FFD700';
+            dots.forEach(d => {
+                ctx.beginPath();
+                ctx.arc(d.x, d.y, d.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            ctx.save();
+            ctx.translate(pacman.x, pacman.y);
+            ctx.rotate(pacman.rotation);
+            if (pacmanImg.complete && pacmanImg.naturalWidth !== 0) {
+                ctx.drawImage(pacmanImg, -pacman.radius, -pacman.radius, pacman.radius * 2, pacman.radius * 2);
+            } else {
+                ctx.fillStyle = 'yellow';
+                ctx.beginPath();
+                ctx.arc(0, 0, pacman.radius, 0.2 * Math.PI, 1.8 * Math.PI);
+                ctx.lineTo(0, 0);
+                ctx.fill();
+            }
+            ctx.restore();
+
+            ghosts.forEach((g, i) => {
+                ctx.save();
+                ctx.translate(g.x, g.y);
+                if (loadedGhostImages[g.imgIndex] && loadedGhostImages[g.imgIndex].complete && loadedGhostImages[g.imgIndex].naturalWidth !== 0) {
+                    ctx.drawImage(loadedGhostImages[g.imgIndex], -TILE_SIZE / 2 + 4, -TILE_SIZE / 2 + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+                } else {
+                    ctx.fillStyle = g.color;
+                    ctx.beginPath();
+                    ctx.arc(0, -5, TILE_SIZE / 2 - 8, Math.PI, 0);
+                    ctx.lineTo(TILE_SIZE / 2 - 8, TILE_SIZE / 2 - 8);
+                    ctx.lineTo(-TILE_SIZE / 2 + 8, TILE_SIZE / 2 - 8);
+                    ctx.fill();
+                }
+                ctx.restore();
+            });
+        }
+
+        resetPositions();
+        initMap();
+        gameLoop(0);
+
+    </script>
+</body>
+
+</html>
